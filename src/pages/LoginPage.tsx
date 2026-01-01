@@ -167,10 +167,6 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
-
-          <p className="mt-8 text-center text-sm text-muted-foreground">
-            Demo: Enter any email and password to login
-          </p>
         </div>
       </div>
     </div>

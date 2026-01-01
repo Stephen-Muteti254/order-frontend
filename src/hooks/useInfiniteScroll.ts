@@ -42,6 +42,8 @@ export function useInfiniteScroll<T>({ fetchFn, pageSize = 20 }: UseInfiniteScro
         setData(response.data);
       }
       setTotal(response.total);
+      // const totalPages = Math.ceil(response.total / params.pageSize);
+
       setHasMore(response.page < response.totalPages);
     } catch (error) {
       console.error('Failed to fetch data:', error);
@@ -54,13 +56,13 @@ export function useInfiniteScroll<T>({ fetchFn, pageSize = 20 }: UseInfiniteScro
   const loadMore = useCallback(() => {
     if (isLoadingMore || !hasMore) return;
 
-    const nextPage = (filtersRef.current.page || 1) + 1;
+    const nextPage = filtersRef.current.page + 1;
     const updatedFilters = { ...filtersRef.current, page: nextPage };
-    setFiltersSafe(updatedFilters);
+
+    filtersRef.current = updatedFilters;
+    setFilters(updatedFilters);
     fetchData(updatedFilters, true);
   }, [isLoadingMore, hasMore, fetchData]);
-
-
 
 
   const updateFilters = useCallback((newFilters: FilterParams) => {
@@ -79,9 +81,11 @@ export function useInfiniteScroll<T>({ fetchFn, pageSize = 20 }: UseInfiniteScro
 
 
   const refresh = useCallback(() => {
-    fetchData({ ...DEFAULT_FILTERS, ...filters, page: 1 }, false);
-  }, [filters, fetchData]);
-
+    const resetFilters = { ...filtersRef.current, page: 1 };
+    filtersRef.current = resetFilters;
+    setFilters(resetFilters);
+    fetchData(resetFilters, false);
+  }, [fetchData]);
 
 
   // Initial fetch

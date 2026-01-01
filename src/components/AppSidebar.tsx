@@ -16,6 +16,19 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
+import api from '@/lib/api';
+
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "@/components/ui/use-toast";
+
+
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -30,6 +43,8 @@ export default function AppSidebar() {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
   const { logout, user } = useAuth();
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+
 
   return (
     <>
@@ -127,8 +142,17 @@ export default function AppSidebar() {
             </div>
             <div className={cn("flex-1 min-w-0", collapsed && "lg:hidden")}>
               <p className="text-sm font-medium truncate">{user?.name || 'User'}</p>
-              <p className="text-xs text-sidebar-muted truncate">{user?.email}</p>
+              <p
+                className="text-xs text-sidebar-muted truncate cursor-pointer hover:underline"
+                onClick={() => setChangePasswordOpen(true)}
+              >
+                {user?.email}
+              </p>
             </div>
+            <ChangePasswordDialog
+              open={changePasswordOpen}
+              onOpenChange={setChangePasswordOpen}
+            />
           </div>
 
           {/* Theme toggle */}
@@ -163,5 +187,105 @@ export default function AppSidebar() {
         </div>
       </aside>
     </>
+  );
+}
+
+
+export function ChangePasswordDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async () => {
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: "Passwords do not match",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await api.post("/users/change-password", {
+        currentPassword,
+        newPassword,
+      });
+
+      const data = res.data;
+
+      if (!data.success) {
+        throw new Error(data.message);
+      }
+
+      toast({ title: data.message });
+
+      onOpenChange(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err: any) {
+      toast({
+        title: err.message || "Failed to change password",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Change Password</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div>
+            <Label>Current password</Label>
+            <Input
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <Label>New password</Label>
+            <Input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <Label>Confirm new password</Label>
+            <Input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+            />
+          </div>
+
+          <Button
+            className="w-full"
+            onClick={handleSubmit}
+            disabled={loading}
+          >
+            {loading ? "Updating..." : "Update password"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

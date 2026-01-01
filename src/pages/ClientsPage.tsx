@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -56,19 +56,28 @@ export default function ClientsPage() {
     refresh,
   } = useInfiniteScroll<Client>({
     pageSize: 20,
-    fetchFn: async ({ page, pageSize, filters }) => {
+    fetchFn: async ({ page, pageSize, search, startDate, endDate }) => {
       const params: any = {
         page,
         page_size: pageSize,
       };
 
-      if (filters?.search) params.search = filters.search;
-      if (filters?.startDate) params.start_date = new Date(filters.startDate).toISOString();
-      if (filters?.endDate) params.end_date = new Date(filters.endDate).toISOString();
+      if (search) params.search = search;
+      if (startDate) params.start_date = new Date(startDate).toISOString();
+      if (endDate) params.end_date = new Date(endDate).toISOString();
 
       return clientsApi.getClients(params);
     }
   });
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      refresh();
+    }, 400);
+
+    return () => clearTimeout(timeout);
+  }, [filters.search]);
+
 
 
   const resetForm = () => {
@@ -81,6 +90,12 @@ export default function ClientsPage() {
     });
     setSelectedClient(null);
   };
+
+  const handleFilterChange = (newFilters: typeof filters) => {
+    updateFilters(newFilters);
+    refresh();
+  };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,13 +164,14 @@ export default function ClientsPage() {
       {/* Filters */}
       <DataTableFilters
         filters={filters || { search: '', startDate: undefined, endDate: undefined }}
-        onFilterChange={updateFilters} // make sure DataTableFilters returns { search, startDate, endDate }
+        onFilterChange={handleFilterChange}
         placeholder="Search clients..."
         showDateFilters
+        disabled={isLoading}
       />
 
       {/* Table */}
-      <Card>
+      <Card className="max-h-[70vh] overflow-y-auto">
         <CardContent className="p-0">
           <table className="w-full">
             <thead>
@@ -178,15 +194,29 @@ export default function ClientsPage() {
                 </tr>
               </thead>
             <tbody>
-              {isLoading && clients.length === 0 ? (
+              {isLoading && (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center">
-                    <Loader2 className="h-6 w-6 animate-spin mx-auto" />
+                  <td colSpan={6} className="py-16 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">
+                        Updating results…
+                      </span>
+                    </div>
                   </td>
                 </tr>
-              ) : (
-                clients.map((client) => (
-                  <tr key={client.id}>
+              )}
+
+              {!isLoading && clients.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="py-12 text-center text-muted-foreground">
+                    No clients found
+                  </td>
+                </tr>
+              )}
+                {!isLoading &&
+                  clients.map((client) => (
+                  <tr key={client.id} className="hover:bg-muted/50 transition-colors">
                     <td className="px-4 py-3">{client.clientName}</td>
                     <td className="px-4 py-3">{client.institution}</td>
                     <td className="px-4 py-3">{client.phone}</td>
@@ -222,8 +252,7 @@ export default function ClientsPage() {
                       </Button>
                     </td>
                   </tr>
-                ))
-              )}
+                ))}
             </tbody>
           </table>
 

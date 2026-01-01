@@ -35,6 +35,8 @@ import InfiniteScrollLoader from '@/components/InfiniteScrollLoader';
 import { ordersApi } from '@/lib/ordersApi';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Calendar } from '@/components/ui/calendar';
+import { clientsApi } from '@/lib/clientsApi';
 
 export default function OrdersPage() {
   const { toast } = useToast();
@@ -48,13 +50,13 @@ export default function OrdersPage() {
     orderId: '',
     clientId: '',
     productId: '',
-    orderClass: '', // class ID
+    orderClass: '',
     week: '',
-    genre: '',      // genre ID
+    genre: '',
     pagesOrSlides: 1,
-    description: '', // added field
+    description: '',
+    orderDate: new Date().toISOString(),
   });
-
 
   const [classOptions, setClassOptions] = useState<{ id: string; name: string }[]>([]);
   const [genreOptions, setGenreOptions] = useState<{ id: string; name: string }[]>([]);
@@ -63,8 +65,20 @@ export default function OrdersPage() {
   const [newGenre, setNewGenre] = useState('');
 
   const [isAddingClass, setIsAddingClass] = useState(false);
-    const [isAddingGenre, setIsAddingGenre] = useState(false);
+  const [isAddingGenre, setIsAddingGenre] = useState(false);
+  const [orderDate, setOrderDate] = useState<Date | undefined>(
+    selectedOrder ? new Date(selectedOrder.orderDate) : new Date()
+  );
 
+  const [clientOptions, setClientOptions] = useState<Client[]>([]);
+  const [clientPage, setClientPage] = useState(1);
+  const [clientHasMore, setClientHasMore] = useState(true);
+  const [loadingClients, setLoadingClients] = useState(false);
+
+  const [filterClientOptions, setFilterClientOptions] = useState<Client[]>([]);
+  const [filterClientPage, setFilterClientPage] = useState(1);
+  const [filterClientHasMore, setFilterClientHasMore] = useState(true);
+  const [filterClientLoading, setFilterClientLoading] = useState(false);
 
   // Infinite scroll
   const {
@@ -94,6 +108,60 @@ export default function OrdersPage() {
   }, []);
 
 
+  const fetchMoreClients = async () => {
+    if (!clientHasMore || loadingClients) return;
+
+    setLoadingClients(true);
+
+    const res = await clientsApi.getClients({
+      page: clientPage,
+      page_size: 20,
+    });
+
+    setClientOptions(prev => [...prev, ...res.data]);
+    setClientPage(prev => prev + 1);
+    setClientHasMore(res.page < Math.ceil(res.total / res.page_size));
+
+    setLoadingClients(false);
+  };
+
+
+
+  const openCreateDialog = () => {
+    resetForm();
+
+    setClientOptions([]);
+    setClientPage(1);
+    setClientHasMore(true);
+
+    fetchMoreClients();
+
+    setIsDialogOpen(true);
+  };
+
+
+  const openEditDialog = (order: Order) => {
+    setSelectedOrder(order);
+    setFormData({
+      orderId: order.orderId,
+      clientId: order.clientId,
+      productId: order.productId,
+      orderClass: order.orderClass,
+      week: order.week,
+      genre: order.genre,
+      pagesOrSlides: order.pagesOrSlides,
+      description: order.description || '',
+    });
+
+    setClientOptions([]);
+    setClientPage(1);
+    setClientHasMore(true);
+
+    fetchMoreClients();
+
+    setIsDialogOpen(true);
+  };
+
   const resetForm = () => {
     setFormData({
       orderId: '',
@@ -106,26 +174,6 @@ export default function OrdersPage() {
       description: '', // reset description
     });
     setSelectedOrder(null);
-  };
-
-  const openCreateDialog = () => {
-    resetForm();
-    setIsDialogOpen(true);
-  };
-
-  const openEditDialog = (order: Order) => {
-    setSelectedOrder(order);
-    setFormData({
-      orderId: order.orderId,
-      clientId: order.clientId,
-      productId: order.productId,
-      orderClass: order.orderClass,
-      week: order.week,
-      genre: order.genre,
-      pagesOrSlides: order.pagesOrSlides,
-      description: order.description || '', // load existing description
-    });
-    setIsDialogOpen(true);
   };
 
   const openDeleteDialog = (order: Order) => {
@@ -185,6 +233,22 @@ export default function OrdersPage() {
     }
   };
 
+  const fetchMoreFilterClients = async () => {
+    if (!filterClientHasMore || filterClientLoading) return;
+
+    setFilterClientLoading(true);
+
+    const res = await clientsApi.getClients({
+      page: filterClientPage,
+      page_size: 20,
+    });
+
+    setFilterClientOptions(prev => [...prev, ...res.data]);
+    setFilterClientPage(prev => prev + 1);
+    setFilterClientHasMore(res.page < Math.ceil(res.total / res.page_size));
+
+    setFilterClientLoading(false);
+  };
 
   const selectedProduct = products.find((p) => p.id === formData.productId);
   const estimatedCost = selectedProduct
@@ -215,23 +279,51 @@ export default function OrdersPage() {
         showDateFilters
       >
         <Select
+          disabled={isLoading}
           value={filters.clientId || 'all'}
+          onOpenChange={(open) => {
+            if (open && filterClientOptions.length === 0) {
+              fetchMoreFilterClients();
+            }
+          }}
           onValueChange={(value) =>
-            updateFilters({ ...filters, clientId: value === 'all' ? undefined : value })
+            updateFilters({
+              ...filters,
+              clientId: value === 'all' ? undefined : value,
+            })
           }
         >
           <SelectTrigger className="w-[180px] h-9">
             <SelectValue placeholder="All Clients" />
           </SelectTrigger>
+
           <SelectContent>
             <SelectItem value="all">All Clients</SelectItem>
-            {clients.map((client) => (
+
+            {filterClientOptions.map(client => (
               <SelectItem key={client.id} value={client.id}>
                 {client.clientName}
               </SelectItem>
             ))}
+
+            {filterClientLoading && (
+              <div className="py-2 text-center text-xs text-muted-foreground">
+                Loading…
+              </div>
+            )}
+
+            {filterClientHasMore && !filterClientLoading && (
+              <button
+                type="button"
+                className="w-full py-2 text-xs text-muted-foreground hover:bg-muted"
+                onClick={fetchMoreFilterClients}
+              >
+                Load more clients
+              </button>
+            )}
           </SelectContent>
         </Select>
+
 
         <Select
           value={filters.productId || 'all'}
@@ -254,7 +346,7 @@ export default function OrdersPage() {
       </DataTableFilters>
 
       {/* Table */}
-      <Card className="border-border/50">
+      <Card className="border-border/50 max-h-[70vh] overflow-y-auto">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -290,19 +382,26 @@ export default function OrdersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {isLoading && orders.length === 0 ? (
+                {isLoading && (
                   <tr>
-                    <td colSpan={9} className="py-12 text-center">
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+                    <td colSpan={9} className="py-16 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">
+                          Updating results…
+                        </span>
+                      </div>
                     </td>
                   </tr>
-                ) : orders.length === 0 ? (
+                )}
+                {!isLoading && orders.length === 0 && (
                   <tr>
                     <td colSpan={9} className="py-12 text-center text-muted-foreground">
                       No orders found
                     </td>
                   </tr>
-                ) : (
+                )}
+                {!isLoading &&
                   orders.map((order) => (
                     <tr key={order.id} className="hover:bg-muted/50 transition-colors">
                       <td className="py-3 px-4">
@@ -350,8 +449,7 @@ export default function OrdersPage() {
                         </div>
                       </td>
                     </tr>
-                  ))
-                )}
+                  ))}
               </tbody>
             </table>
           </div>
@@ -392,16 +490,37 @@ export default function OrdersPage() {
                 <Select
                   value={formData.clientId}
                   onValueChange={(value) => setFormData({ ...formData, clientId: value })}
+                  onOpenChange={(open) => {
+                    if (open && clientOptions.length === 0) {
+                      fetchMoreClients();
+                    }
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select a client" />
                   </SelectTrigger>
                   <SelectContent>
-                    {clients.map((client) => (
+                    {clientOptions.map(client => (
                       <SelectItem key={client.id} value={client.id}>
-                        {client.clientName} ({client.clientId})
+                        {client.clientName}
                       </SelectItem>
                     ))}
+
+                    {loadingClients && (
+                      <div className="py-2 text-center text-xs text-muted-foreground">
+                        Loading…
+                      </div>
+                    )}
+
+                    {clientHasMore && !loadingClients && (
+                      <button
+                        type="button"
+                        className="w-full py-2 text-xs text-muted-foreground hover:bg-muted"
+                        onClick={fetchMoreClients}
+                      >
+                        Load more clients
+                      </button>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -546,6 +665,24 @@ export default function OrdersPage() {
                   required
                 />
               </div>
+
+              <div className="space-y-2">
+                <Label>Order Date</Label>
+                <Calendar
+                  mode="single"
+                  selected={orderDate}
+                  onSelect={(date) => {
+                    setOrderDate(date);
+                    if (date) {
+                      setFormData({
+                        ...formData,
+                        orderDate: date.toISOString(),
+                      });
+                    }
+                  }}
+                />
+              </div>
+
 
               <div className="space-y-2">
                 <Label htmlFor="description">Description</Label>

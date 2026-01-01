@@ -37,6 +37,14 @@ type DatePreset = 'today' | 'yesterday' | 'thisWeek' | 'lastWeek' | 'thisMonth' 
 export default function InvoicesPage() {
   const { toast } = useToast();
   const [clients, setClients] = useState<Client[]>([]);
+  const [clientsPage, setClientsPage] = useState(1);
+  const [clientsHasMore, setClientsHasMore] = useState(true);
+  const [clientsLoading, setClientsLoading] = useState(false);
+
+  const [loadingClients, setLoadingClients] = useState(false);
+  const [clientOptions, setClientOptions] = useState<Client[]>([]);
+
+
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [datePreset, setDatePreset] = useState<DatePreset>('thisMonth');
   const [startDate, setStartDate] = useState<Date>(startOfMonth(new Date()));
@@ -53,6 +61,29 @@ export default function InvoicesPage() {
         toast({ title: 'Failed to load clients', variant: 'destructive' })
       );
   }, []);
+
+
+  const fetchMoreClients = async (reset = false) => {
+    if (loadingClients || (!clientsHasMore && !reset)) return;
+
+    setLoadingClients(true);
+
+    try {
+      const res = await clientsApi.getClients({
+        page: reset ? 1 : clientsPage,
+        page_size: 20,
+      });
+
+      setClientOptions(prev => reset ? res.data : [...prev, ...res.data]);
+      setClientsPage(reset ? 2 : clientsPage + 1);
+      setClientsHasMore(res.page < Math.ceil(res.total / res.page_size));
+    } catch {
+      toast({ title: 'Failed to load clients', variant: 'destructive' });
+    } finally {
+      setLoadingClients(false);
+    }
+  };
+
 
   const getPresetRange = (preset: DatePreset) => {
     const now = new Date();
@@ -118,6 +149,9 @@ export default function InvoicesPage() {
   };
 
 
+  useEffect(() => {
+    fetchMoreClients(true);
+  }, []);
 
 
   const fetchData = async () => {
@@ -156,6 +190,55 @@ export default function InvoicesPage() {
       toast({ title: 'Error fetching data', variant: 'destructive' });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+
+  const fetchClients = async (page = 1, reset = false) => {
+    if (clientsLoading || (!clientsHasMore && !reset)) return;
+
+    setClientsLoading(true);
+
+    try {
+      const res = await clientsApi.getClients({
+        page,
+        page_size: 20,
+      });
+
+      setClients((prev) =>
+        reset ? res.data : [...prev, ...res.data]
+      );
+
+      setClientsHasMore(page < res.totalPages);
+      setClientsPage(page);
+    } catch {
+      toast({ title: 'Failed to load clients', variant: 'destructive' });
+    } finally {
+      setClientsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchClients(1, true);
+  }, []);
+
+
+  useEffect(() => {
+    setClients([]);
+    setClientsPage(1);
+    setClientsHasMore(true);
+    fetchClients(1, true);
+  }, [activeTab]);
+
+
+  const handleClientsScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+
+    const isNearBottom =
+      target.scrollTop + target.clientHeight >= target.scrollHeight - 20;
+
+    if (isNearBottom && clientsHasMore && !clientsLoading) {
+      fetchClients(clientsPage + 1);
     }
   };
 
@@ -232,16 +315,47 @@ export default function InvoicesPage() {
               {/* Client Selection */}
               <div className="space-y-2">
                 <Label>Select Client</Label>
-                <Select value={selectedClientId} onValueChange={setSelectedClientId}>
+                <Select
+                  value={selectedClientId}
+                  onValueChange={setSelectedClientId}
+                  onOpenChange={(open) => {
+                    if (open && clientOptions.length === 0) {
+                      fetchMoreClients(true);
+                    }
+                  }}
+                >
                   <SelectTrigger className="w-full max-w-md">
                     <SelectValue placeholder="Choose a client" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {clients.map((client) => (
+
+                  <SelectContent className="max-h-[300px] overflow-y-auto">
+                    {clientOptions.map(client => (
                       <SelectItem key={client.id} value={client.id}>
                         {client.clientName} ({client.clientId})
                       </SelectItem>
                     ))}
+
+                    {loadingClients && (
+                      <div className="flex items-center justify-center py-2">
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      </div>
+                    )}
+
+                    {clientsHasMore && !loadingClients && (
+                      <button
+                        type="button"
+                        className="w-full py-2 text-xs text-muted-foreground hover:bg-muted"
+                        onClick={() => fetchMoreClients()}
+                      >
+                        Load more clients
+                      </button>
+                    )}
+
+                    {!clientsHasMore && clientOptions.length === 0 && (
+                      <div className="py-2 text-center text-sm text-muted-foreground">
+                        No clients found
+                      </div>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
