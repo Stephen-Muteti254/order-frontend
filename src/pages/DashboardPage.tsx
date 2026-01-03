@@ -4,30 +4,19 @@ import {
   Package,
   ShoppingCart,
   DollarSign,
-  TrendingUp,
-  ArrowUpRight,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import api from '@/lib/api';
+import EarningsComparison from '@/components/analytics/EarningsComparison';
+import RevenueTrend from '@/components/analytics/RevenueTrend';
+import ClientEarnings from '@/components/analytics/ClientEarnings';
+import OrdersTrend from '@/components/analytics/OrdersTrend';
 
 interface Stats {
   totalClients: number;
   totalProducts: number;
   totalOrders: number;
   totalRevenue: number;
-}
-
-interface Order {
-  id: number;
-  orderId: string;
-  totalCost: number;
-  pagesOrSlides: number;
-  client?: {
-    clientName: string;
-  };
-  product?: {
-    name: string;
-  };
 }
 
 export default function DashboardPage() {
@@ -37,19 +26,15 @@ export default function DashboardPage() {
     totalOrders: 0,
     totalRevenue: 0,
   });
-
-  const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     async function fetchDashboardData() {
       try {
-        // Fetch clients and products totals
-        const [clientsRes, productsRes, ordersSummaryRes, recentOrdersRes] = await Promise.all([
+        const [clientsRes, productsRes, ordersSummaryRes] = await Promise.all([
           api.get('/clients', { params: { page: 1, page_size: 1 } }),
           api.get('/products', { params: { page: 1, page_size: 1 } }),
           api.get('/orders/summary'),
-          api.get('/orders', { params: { page: 1, page_size: 5, sort: '-createdAt' } }),
         ]);
 
         setStats({
@@ -58,8 +43,6 @@ export default function DashboardPage() {
           totalOrders: ordersSummaryRes.data?.totalOrders ?? 0,
           totalRevenue: ordersSummaryRes.data?.totalRevenue ?? 0,
         });
-
-        setRecentOrders(recentOrdersRes.data?.data || []);
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
       } finally {
@@ -75,7 +58,6 @@ export default function DashboardPage() {
       title: 'Total Clients',
       value: stats.totalClients,
       icon: Users,
-      change: '+12%',
       color: 'text-primary',
       bgColor: 'bg-primary/10',
     },
@@ -83,7 +65,6 @@ export default function DashboardPage() {
       title: 'Products',
       value: stats.totalProducts,
       icon: Package,
-      change: '+3%',
       color: 'text-accent',
       bgColor: 'bg-accent/10',
     },
@@ -91,7 +72,6 @@ export default function DashboardPage() {
       title: 'Total Orders',
       value: stats.totalOrders,
       icon: ShoppingCart,
-      change: '+18%',
       color: 'text-success',
       bgColor: 'bg-success/10',
     },
@@ -99,7 +79,6 @@ export default function DashboardPage() {
       title: 'Revenue',
       value: `$${stats.totalRevenue.toLocaleString()}`,
       icon: DollarSign,
-      change: '+24%',
       color: 'text-warning',
       bgColor: 'bg-warning/10',
     },
@@ -131,55 +110,32 @@ export default function DashboardPage() {
                   <stat.icon className="h-5 w-5" />
                 </div>
               </div>
-              <div className="flex items-center gap-1 mt-3 text-sm">
-              </div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Recent Orders */}
-      <Card className="border-border/50">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-lg font-semibold">Recent Orders</CardTitle>
-          <a
-            href="/orders"
-            className="text-sm text-primary hover:text-primary/80 flex items-center gap-1"
-          >
-            View all <ArrowUpRight className="h-3.5 w-3.5" />
-          </a>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase">Client</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase">Product</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase">Pages</th>
-                  <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase">Total</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {isLoading ? (
-                  <tr>
-                    <td colSpan={5} className="py-8 text-center text-muted-foreground">Loading...</td>
-                  </tr>
-                ) : (
-                  recentOrders.map((order) => (
-                    <tr key={order.id} className="hover:bg-muted/50 transition-colors">
-                      <td className="py-3 px-4 text-sm">{order.client?.clientName ?? 'N/A'}</td>
-                      <td className="py-3 px-4 text-sm">{order.product?.name ?? 'N/A'}</td>
-                      <td className="py-3 px-4 text-sm">{order.pagesOrSlides}</td>
-                      <td className="py-3 px-4 text-right font-medium text-sm">${order.totalCost.toLocaleString()}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Analytics Section */}
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">Insights & Analytics</h2>
+          <p className="text-sm text-muted-foreground">
+            Track your business performance with detailed analytics
+          </p>
+        </div>
+
+        {/* First Row: Earnings Comparison + Revenue Trend */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <EarningsComparison />
+          <OrdersTrend />
+        </div>
+
+        {/* Second Row: Revenue Trajectory (Full Width) */}
+        <RevenueTrend />
+
+        {/* Third Row: Client Earnings */}
+        <ClientEarnings />
+      </div>
     </div>
   );
 }
