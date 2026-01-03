@@ -3,6 +3,7 @@ import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { Order, Client } from '@/types';
 import { format } from 'date-fns';
+import { formatEAT } from '@/lib/dateUtils';
 
 export function exportToPDF(
   orders: Order[],
@@ -21,8 +22,12 @@ export function exportToPDF(
   // Invoice details
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Invoice Date: ${format(new Date(), 'PPP')}`, 14, 35);
-  doc.text(`Period: ${format(new Date(startDate), 'PP')} - ${format(new Date(endDate), 'PP')}`, 14, 42);
+  doc.text(`Invoice Date: ${formatEAT(new Date())}`, 14, 35);
+  doc.text(
+    `Period: ${formatEAT(startDate)} - ${formatEAT(endDate)}`,
+    14,
+    42
+  );
 
   // Client details
   doc.setFont('helvetica', 'bold');
@@ -85,8 +90,8 @@ export function exportToExcel(
   const headerData = [
     ['INVOICE'],
     [],
-    ['Invoice Date:', format(new Date(), 'PPP')],
-    ['Period:', `${format(new Date(startDate), 'PP')} - ${format(new Date(endDate), 'PP')}`],
+    ['Invoice Date:', formatEAT(new Date())],
+    ['Period:', `${formatEAT(startDate)} - ${formatEAT(endDate)}`],
     [],
     ['Bill To:'],
     ['Client Name:', client.clientName],
@@ -157,8 +162,12 @@ export function exportReportToPDF(
   // Report details
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Generated: ${format(new Date(), 'PPP')}`, 14, 35);
-  doc.text(`Period: ${format(new Date(startDate), 'PP')} - ${format(new Date(endDate), 'PP')}`, 14, 42);
+  doc.text(`Generated: ${formatEAT(new Date())}`, 14, 35);
+  doc.text(
+    `Period: ${formatEAT(startDate)} - ${formatEAT(endDate)}`,
+    14,
+    42
+  );
   doc.text(`Total Orders: ${orders.length}`, 14, 49);
 
   // Table

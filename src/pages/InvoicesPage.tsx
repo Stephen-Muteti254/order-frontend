@@ -31,6 +31,7 @@ import {
   subDays,
   subMonths
 } from 'date-fns';
+import { formatEAT } from '@/lib/dateUtils';
 
 type DatePreset = 'today' | 'yesterday' | 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMonth' | 'custom';
 
@@ -390,7 +391,7 @@ export default function InvoicesPage() {
                             )}
                           >
                             <CalendarIcon className="mr-2 h-4 w-4" />
-                            {startDate ? format(startDate, 'PPP') : 'Pick a date'}
+                            {startDate ? formatEAT(startDate) : 'Pick a date'}
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
@@ -448,7 +449,7 @@ export default function InvoicesPage() {
                 <div>
                   <CardTitle className="text-lg">Invoice Preview</CardTitle>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {selectedClient.clientName} • {format(startDate, 'PP')} - {format(endDate, 'PP')}
+                    {selectedClient.clientName} • {formatEAT(startDate)} - {formatEAT(endDate)}
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -561,7 +562,7 @@ export default function InvoicesPage() {
                             )}
                           >
                             <CalendarIcon className="mr-2 h-4 w-4" />
-                            {startDate ? format(startDate, 'PPP') : 'Pick a date'}
+                            {startDate ? formatEAT(startDate) : 'Pick a date'}
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
@@ -619,7 +620,7 @@ export default function InvoicesPage() {
                 <div>
                   <CardTitle className="text-lg">Report Preview</CardTitle>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {orders.length} orders • {format(startDate, 'PP')} - {format(endDate, 'PP')}
+                    {orders.length} orders • {formatEAT(startDate)} - {formatEAT(endDate)}
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -683,7 +684,7 @@ export default function InvoicesPage() {
                             ${order.totalCost.toFixed(2)}
                           </td>
                           <td className="py-3 px-4 text-sm text-muted-foreground">
-                            {format(new Date(order.createdAt), 'PP')}
+                            {formatEAT(order.createdAt)}
                           </td>
                         </tr>
                       ))}
