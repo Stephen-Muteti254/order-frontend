@@ -32,6 +32,8 @@ import {
   subMonths
 } from 'date-fns';
 import { formatEAT } from '@/lib/dateUtils';
+import { Class } from '@/types';
+import { classesApi } from '@/lib/classesApi';
 
 type DatePreset = 'today' | 'yesterday' | 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMonth' | 'custom';
 
@@ -53,6 +55,47 @@ export default function InvoicesPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('invoice');
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [classPage, setClassPage] = useState(1);
+  const [classHasMore, setClassHasMore] = useState(true);
+  const [classLoading, setClassLoading] = useState(false);
+
+  const [selectedClassId, setSelectedClassId] = useState<string>('');
+
+
+  const fetchClasses = async (reset = false) => {
+    if (classLoading || (!classHasMore && !reset)) return;
+
+    setClassLoading(true);
+
+    try {
+      const res = await classesApi.getClasses({
+        page: reset ? 1 : classPage,
+        page_size: 10,
+      });
+
+      setClasses((prev) =>
+        reset ? res.data : [...prev, ...res.data]
+      );
+
+      setClassPage(reset ? 2 : classPage + 1);
+      setClassHasMore(res.page < Math.ceil(res.total / res.page_size));
+    } catch {
+      toast({ title: 'Failed to load classes', variant: 'destructive' });
+    } finally {
+      setClassLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'invoice') {
+      setClasses([]);
+      setClassPage(1);
+      setClassHasMore(true);
+    }
+  }, [activeTab]);
+
+
 
   useEffect(() => {
     clientsApi
@@ -154,6 +197,11 @@ export default function InvoicesPage() {
     fetchMoreClients(true);
   }, []);
 
+  useEffect(() => {
+    setSelectedClassId('');
+  }, [selectedClientId]);
+
+
 
   const fetchData = async () => {
     if (activeTab === 'invoice' && !selectedClientId) {
@@ -179,9 +227,11 @@ export default function InvoicesPage() {
         startDate: start.toISOString(),
         endDate: end.toISOString(),
         ...(activeTab === 'invoice' && { clientId: selectedClientId }),
+        ...(activeTab === 'invoice' && selectedClassId && { classId: selectedClassId }),
         page: 1,
         pageSize: 1000,
       };
+
 
       console.log('Sending filters:', filters);
 
@@ -360,6 +410,52 @@ export default function InvoicesPage() {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Class Selection */}
+              <div className="space-y-2">
+                <Label>Class (Optional)</Label>
+
+                <Select
+                  value={selectedClassId}
+                  onValueChange={setSelectedClassId}
+                  onOpenChange={(open) => {
+                    if (open && classes.length === 0) {
+                      fetchClasses(true);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-full max-w-md">
+                    <SelectValue placeholder="All classes" />
+                  </SelectTrigger>
+
+                  <SelectContent className="max-h-[300px] overflow-y-auto">
+                    {/* Allow clearing */}
+                    <SelectItem value="__all__">All Classes</SelectItem>
+                    {classes.map((cls) => (
+                      <SelectItem key={cls.id} value={cls.id}>
+                        {cls.name}
+                      </SelectItem>
+                    ))}
+
+                    {classLoading && (
+                      <div className="flex justify-center py-2">
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      </div>
+                    )}
+
+                    {classHasMore && !classLoading && (
+                      <button
+                        type="button"
+                        className="w-full py-2 text-xs text-muted-foreground hover:bg-muted"
+                        onClick={() => fetchClasses()}
+                      >
+                        Load more classes
+                      </button>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
 
               {/* Date Filters */}
               <div className="space-y-4">
