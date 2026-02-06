@@ -97,6 +97,14 @@ export default function OrdersPage() {
     pageSize: 20,
   });
 
+  const resetClientPagination = () => {
+    setClientOptions([]);
+    setClientPage(1);
+    setClientHasMore(true);
+    setLoadingClients(false);
+  };
+
+
   // Fetch clients and products
   useEffect(() => {
     Promise.all([ordersApi.getAllClients(), ordersApi.getAllProducts()]).then(
@@ -106,6 +114,13 @@ export default function OrdersPage() {
       }
     );
   }, []);
+
+
+  useEffect(() => {
+    if (!isDialogOpen) {
+      resetClientPagination();
+    }
+  }, [isDialogOpen]);
 
 
   const fetchMoreClients = async () => {
@@ -129,13 +144,8 @@ export default function OrdersPage() {
 
   const openCreateDialog = () => {
     resetForm();
-
-    setClientOptions([]);
-    setClientPage(1);
-    setClientHasMore(true);
-
+    resetClientPagination();
     fetchMoreClients();
-
     setIsDialogOpen(true);
   };
 
@@ -153,12 +163,8 @@ export default function OrdersPage() {
       description: order.description || '',
     });
 
-    setClientOptions([]);
-    setClientPage(1);
-    setClientHasMore(true);
-
+    resetClientPagination();
     fetchMoreClients();
-
     setIsDialogOpen(true);
   };
 
@@ -195,6 +201,7 @@ export default function OrdersPage() {
       }
       setIsDialogOpen(false);
       resetForm();
+      resetClientPagination();
       refresh();
     } catch (error) {
       toast({ title: 'Error saving order', variant: 'destructive' });
