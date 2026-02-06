@@ -149,15 +149,15 @@ export default function InvoicesPage() {
 
       case 'thisWeek':
         return {
-          start: startOfWeek(now, { weekStartsOn: 1 }),
-          end: endOfWeek(now, { weekStartsOn: 1 }),
+          start: startOfWeek(now, { weekStartsOn: 0 }),
+          end: endOfWeek(now, { weekStartsOn: 0 }),
         };
 
       case 'lastWeek': {
         const lw = subDays(now, 7);
         return {
-          start: startOfWeek(lw, { weekStartsOn: 1 }),
-          end: endOfWeek(lw, { weekStartsOn: 1 }),
+          start: startOfWeek(lw, { weekStartsOn: 0 }),
+          end: endOfWeek(lw, { weekStartsOn: 0 }),
         };
       }
 
