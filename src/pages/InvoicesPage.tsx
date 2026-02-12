@@ -39,7 +39,6 @@ type DatePreset = 'today' | 'yesterday' | 'thisWeek' | 'lastWeek' | 'thisMonth' 
 
 export default function InvoicesPage() {
   const { toast } = useToast();
-  const [clients, setClients] = useState<Client[]>([]);
   const [clientsPage, setClientsPage] = useState(1);
   const [clientsHasMore, setClientsHasMore] = useState(true);
   const [clientsLoading, setClientsLoading] = useState(false);
@@ -74,9 +73,14 @@ export default function InvoicesPage() {
         page_size: 10,
       });
 
-      setClasses((prev) =>
-        reset ? res.data : [...prev, ...res.data]
-      );
+      setClasses(prev => {
+        const combined = reset ? res.data : [...prev, ...res.data];
+
+        return Array.from(
+          new Map(combined.map(item => [item.id, item])).values()
+        );
+      });
+
 
       setClassPage(reset ? 2 : classPage + 1);
       setClassHasMore(res.page < Math.ceil(res.total / res.page_size));
@@ -97,14 +101,14 @@ export default function InvoicesPage() {
 
 
 
-  useEffect(() => {
-    clientsApi
-      .getClients({ page: 1, page_size: 100 })
-      .then((res) => setClients(res.data))
-      .catch(() =>
-        toast({ title: 'Failed to load clients', variant: 'destructive' })
-      );
-  }, []);
+  // useEffect(() => {
+  //   clientsApi
+  //     .getClients({ page: 1, page_size: 100 })
+  //     .then((res) => setClients(res.data))
+  //     .catch(() =>
+  //       toast({ title: 'Failed to load clients', variant: 'destructive' })
+  //     );
+  // }, []);
 
 
   const fetchMoreClients = async (reset = false) => {
@@ -118,7 +122,16 @@ export default function InvoicesPage() {
         page_size: 20,
       });
 
-      setClientOptions(prev => reset ? res.data : [...prev, ...res.data]);
+      setClientOptions(prev => {
+        const combined = reset ? res.data : [...prev, ...res.data];
+
+        const unique = Array.from(
+          new Map(combined.map(item => [item.id, item])).values()
+        );
+
+        return unique;
+      });
+
       setClientsPage(reset ? 2 : clientsPage + 1);
       setClientsHasMore(res.page < Math.ceil(res.total / res.page_size));
     } catch {
@@ -233,9 +246,15 @@ export default function InvoicesPage() {
       };
 
 
-      console.log('Sending filters:', filters);
+      console.log("START DATE:", start);
+      console.log("END DATE:", end);
+      console.log("FINAL FILTERS:", filters);
 
       const res = await ordersApi.getOrders(filters);
+
+      console.log("API RESPONSE:", res);
+      console.log("RES.DATA:", res.data);
+      console.log("selectedClient:", selectedClient);
       setOrders(res.data);
     } catch {
       toast({ title: 'Error fetching data', variant: 'destructive' });
@@ -245,41 +264,41 @@ export default function InvoicesPage() {
   };
 
 
-  const fetchClients = async (page = 1, reset = false) => {
-    if (clientsLoading || (!clientsHasMore && !reset)) return;
+  // const fetchClients = async (page = 1, reset = false) => {
+  //   if (clientsLoading || (!clientsHasMore && !reset)) return;
 
-    setClientsLoading(true);
+  //   setClientsLoading(true);
 
-    try {
-      const res = await clientsApi.getClients({
-        page,
-        page_size: 20,
-      });
+  //   try {
+  //     const res = await clientsApi.getClients({
+  //       page,
+  //       page_size: 20,
+  //     });
 
-      setClients((prev) =>
-        reset ? res.data : [...prev, ...res.data]
-      );
+  //     setClients((prev) =>
+  //       reset ? res.data : [...prev, ...res.data]
+  //     );
 
-      setClientsHasMore(page < res.totalPages);
-      setClientsPage(page);
-    } catch {
-      toast({ title: 'Failed to load clients', variant: 'destructive' });
-    } finally {
-      setClientsLoading(false);
-    }
-  };
+  //     setClientsHasMore(page < res.totalPages);
+  //     setClientsPage(page);
+  //   } catch {
+  //     toast({ title: 'Failed to load clients', variant: 'destructive' });
+  //   } finally {
+  //     setClientsLoading(false);
+  //   }
+  // };
 
-  useEffect(() => {
-    fetchClients(1, true);
-  }, []);
+  // useEffect(() => {
+  //   fetchClients(1, true);
+  // }, []);
 
 
-  useEffect(() => {
-    setClients([]);
-    setClientsPage(1);
-    setClientsHasMore(true);
-    fetchClients(1, true);
-  }, [activeTab]);
+  // useEffect(() => {
+  //   setClients([]);
+  //   setClientsPage(1);
+  //   setClientsHasMore(true);
+  //   fetchClients(1, true);
+  // }, [activeTab]);
 
 
   const handleClientsScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -302,7 +321,7 @@ export default function InvoicesPage() {
     }
 
     if (activeTab === 'invoice') {
-      const client = clients.find((c) => c.id === selectedClientId);
+      const client = clientOptions.find((c) => c.id === selectedClientId);
       if (!client) return;
       exportToPDF(orders, client, startDate.toISOString(), endDate.toISOString());
     } else {
@@ -318,7 +337,7 @@ export default function InvoicesPage() {
     }
 
     if (activeTab === 'invoice') {
-      const client = clients.find((c) => c.id === selectedClientId);
+      const client = clientOptions.find((c) => c.id === selectedClientId);
       if (!client) return;
       exportToExcel(orders, client, startDate.toISOString(), endDate.toISOString());
     } else {
@@ -328,7 +347,7 @@ export default function InvoicesPage() {
   };
 
   const totalAmount = orders.reduce((sum, order) => sum + order.totalCost, 0);
-  const selectedClient = clients.find((c) => c.id === selectedClientId);
+  const selectedClient = clientOptions.find((c) => c.id === selectedClientId);
 
   const presetOptions = [
     { value: 'today', label: 'Today' },
